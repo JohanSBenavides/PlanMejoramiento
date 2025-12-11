@@ -24,107 +24,140 @@ async function crearDatosDePrueba(forceReset = false) {
     const [estudianteRol] = await Rol.findOrCreate({ where: { nombre: 'Estudiante' } });
 
     // =====================================================
-    // CURSOS
+    // CURSOS (6)
     // =====================================================
-    const [cursoA] = await Curso.findOrCreate({ where: { nombre: 'Curso A' } });
-    const [cursoB] = await Curso.findOrCreate({ where: { nombre: 'Curso B' } });
-    const [cursoC] = await Curso.findOrCreate({ where: { nombre: 'Curso C' } });
+    const cursosRaw = ["Primero A", "Primero B", "Segundo A", "Segundo B", "Tercero A", "Tercero B"];
+    const cursos = [];
+
+    for (const nombre of cursosRaw) {
+      const [curso] = await Curso.findOrCreate({ where: { nombre } });
+      cursos.push(curso);
+    }
 
     // =====================================================
-    // MATERIAS
+    // MATERIAS (12)
     // =====================================================
-    await Materia.bulkCreate([
-      { nombre: 'Matemáticas', idCurso: cursoA.id },
-      { nombre: 'Historia', idCurso: cursoB.id },
-      { nombre: 'Inglés', idCurso: cursoA.id },
-      { nombre: 'Ciencias', idCurso: cursoC.id },
-    ], { ignoreDuplicates: true });
+    const materiasRaw = [
+      "Matemáticas", "Lengua Castellana", "Biología", "Química",
+      "Sociales", "Ética", "Física", "Inglés",
+      "Geometría", "Historia", "Informática", "Artes"
+    ];
 
-    const matematica = await Materia.findOne({ where: { nombre: 'Matemáticas' } });
-    const historia = await Materia.findOne({ where: { nombre: 'Historia' } });
-    const ingles = await Materia.findOne({ where: { nombre: 'Inglés' } });
-    const ciencias = await Materia.findOne({ where: { nombre: 'Ciencias' } });
-
-    // =====================================================
-    // PROFESORES
-    // =====================================================
-    const passwordProfesor = await bcrypt.hash('profesor123', 10);
-    const profesores = await Promise.all([
-      Usuario.findOrCreate({
-        where: { correo: 'profesor1@notas.com' },
-        defaults: { nombre: 'Carlos Gómez', password: passwordProfesor, idRol: profesorRol.id },
-      }),
-      Usuario.findOrCreate({
-        where: { correo: 'profesor2@notas.com' },
-        defaults: { nombre: 'Ana López', password: passwordProfesor, idRol: profesorRol.id },
-      }),
-      Usuario.findOrCreate({
-        where: { correo: 'profesor3@notas.com' },
-        defaults: { nombre: 'Pedro Martínez', password: passwordProfesor, idRol: profesorRol.id },
-      }),
-    ]);
-    const [profesor1, profesor2, profesor3] = profesores.map(([p]) => p);
+    const materias = [];
+    for (let i = 0; i < materiasRaw.length; i++) {
+      const curso = cursos[i % cursos.length];
+      const [mat] = await Materia.findOrCreate({
+        where: { nombre: materiasRaw[i] },
+        defaults: { idCurso: curso.id }
+      });
+      materias.push(mat);
+    }
 
     // =====================================================
-    // ESTUDIANTES
+    // PROFESORES (6)
     // =====================================================
-    const passwordEstudiante = await bcrypt.hash('estudiante123', 10);
-    const estudiantes = await Promise.all([
-      Usuario.findOrCreate({
-        where: { correo: 'est1@notas.com' },
-        defaults: { nombre: 'Juan Pérez', password: passwordEstudiante, idRol: estudianteRol.id },
-      }),
-      Usuario.findOrCreate({
-        where: { correo: 'est2@notas.com' },
-        defaults: { nombre: 'María Ruiz', password: passwordEstudiante, idRol: estudianteRol.id },
-      }),
-      Usuario.findOrCreate({
-        where: { correo: 'est3@notas.com' },
-        defaults: { nombre: 'Andrés Torres', password: passwordEstudiante, idRol: estudianteRol.id },
-      }),
-      Usuario.findOrCreate({
-        where: { correo: 'est4@notas.com' },
-        defaults: { nombre: 'Laura Díaz', password: passwordEstudiante, idRol: estudianteRol.id },
-      }),
-    ]);
-    const [est1, est2, est3, est4] = estudiantes.map(([e]) => e);
+    const passProfesor = await bcrypt.hash("profesor123", 10);
+    const profesores = [];
+
+    for (let i = 1; i <= 6; i++) {
+      const [prof] = await Usuario.findOrCreate({
+        where: { correo: `prof${i}@notas.com` },
+        defaults: {
+          nombre: `Profesor ${i}`,
+          password: passProfesor,
+          idRol: profesorRol.id
+        }
+      });
+      profesores.push(prof);
+    }
 
     // =====================================================
-    // RELACIONES PROFESORES ↔ CURSOS
+    // ESTUDIANTES (20)
     // =====================================================
-    await CursoProfesor.bulkCreate([
-      { idCurso: cursoA.id, idProfesor: profesor1.id },
-      { idCurso: cursoB.id, idProfesor: profesor2.id },
-      { idCurso: cursoC.id, idProfesor: profesor3.id },
-    ], { ignoreDuplicates: true });
+    const passEst = await bcrypt.hash("estudiante123", 10);
+    const estudiantes = [];
+
+    for (let i = 1; i <= 20; i++) {
+      const [est] = await Usuario.findOrCreate({
+        where: { correo: `est${i}@notas.com` },
+        defaults: {
+          nombre: `Estudiante ${i}`,
+          password: passEst,
+          idRol: estudianteRol.id
+        }
+      });
+      estudiantes.push(est);
+    }
 
     // =====================================================
-    // RELACIONES ESTUDIANTES ↔ CURSOS
+    // RELACIONES: Profesores ↔ Cursos
     // =====================================================
-    await CursoEstudiante.bulkCreate([
-      { idCurso: cursoA.id, idEstudiante: est1.id },
-      { idCurso: cursoA.id, idEstudiante: est3.id },
-      { idCurso: cursoB.id, idEstudiante: est2.id },
-      { idCurso: cursoC.id, idEstudiante: est4.id },
-    ], { ignoreDuplicates: true });
+    for (let i = 0; i < cursos.length; i++) {
+      await CursoProfesor.create({
+        idCurso: cursos[i].id,
+        idProfesor: profesores[i % profesores.length].id
+      });
+    }
 
     // =====================================================
-    // NOTAS
+    // RELACIONES: Estudiantes ↔ Cursos (distribución equilibrada)
     // =====================================================
-    await Nota.bulkCreate([
-      { calificacion: 4.5, idMateria: matematica.id, idEstudiante: est1.id, idProfesor: profesor1.id },
-      { calificacion: 3.8, idMateria: historia.id, idEstudiante: est2.id, idProfesor: profesor2.id },
-      { calificacion: 5.0, idMateria: ingles.id, idEstudiante: est3.id, idProfesor: profesor1.id },
-      { calificacion: 4.2, idMateria: ciencias.id, idEstudiante: est4.id, idProfesor: profesor3.id },
-    ], { ignoreDuplicates: true });
+    for (let i = 0; i < estudiantes.length; i++) {
+      const curso = cursos[i % cursos.length];
+      await CursoEstudiante.create({
+        idCurso: curso.id,
+        idEstudiante: estudiantes[i].id
+      });
+    }
 
-    console.log('✅ Datos de prueba creados exitosamente.');
+    // =====================================================
+    // RELACIONES: Profesores ↔ Materias
+    // =====================================================
+    for (let i = 0; i < materias.length; i++) {
+      const profesor = profesores[i % profesores.length];
+      await materias[i].update({ idProfesor: profesor.id });
+    }
+
+    // =====================================================
+    // GENERAR 50 NOTAS AUTOMÁTICAMENTE
+    // =====================================================
+    const notas = [];
+    for (let i = 0; i < 50; i++) {
+      const materia = materias[Math.floor(Math.random() * materias.length)];
+      const estudiante = estudiantes[Math.floor(Math.random() * estudiantes.length)];
+      const profesor = profesores[Math.floor(Math.random() * profesores.length)];
+
+      notas.push({
+        calificacion: (Math.random() * 5).toFixed(1),
+        idMateria: materia.id,
+        idProfesor: profesor.id,
+        idEstudiante: estudiante.id
+      });
+    }
+
+    await Nota.bulkCreate(notas);
+
+    // =====================================================
+    // ADMIN
+    // =====================================================
+    const passAdmin = await bcrypt.hash("admin123", 10);
+    await Usuario.findOrCreate({
+      where: { correo: "admin@notas.com" },
+      defaults: {
+        nombre: "Super Admin",
+        password: passAdmin,
+        idRol: adminRol.id
+      }
+    });
+
+    console.log("✅ Seed completo creado con éxito");
     process.exit(0);
+
   } catch (err) {
-    console.error('❌ Error al crear datos de prueba:', err);
+    console.error("❌ Error en el seed:", err);
     process.exit(1);
   }
 }
 
-const forceReset = process.argv.includes('--force');
+const forceReset = process.argv.includes("--force");
 crearDatosDePrueba(forceReset);
